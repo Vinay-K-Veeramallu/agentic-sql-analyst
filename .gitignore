@@ -1,0 +1,16 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.egg-info/
+
+# Generated artifacts
+data/*.db
+logs/*.log
+
+# OS
+.DS_Store

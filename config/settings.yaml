@@ -1,0 +1,14 @@
+# QueryMind baseline configuration.
+# Command line flags (--provider, --model, --db) override these values.
+
+# One of: asu | openai | mock
+#   asu    -> ASU OpenCode gateway, needs OPENCODE_API_KEY and OPENCODE_BASE_URL
+#   openai -> public OpenAI API, needs OPENAI_API_KEY
+#   mock   -> offline rule-based stub, needs no credentials
+provider: mock
+
+model: muse-glimmer-30b
+
+database_path: data/analytics.db
+
+max_rows: 50

@@ -1,0 +1,7 @@
+# Mini benchmark used to measure the baseline success rate.
+# One natural language question per line. Lines starting with '#' are ignored.
+Who are the top 3 customers by total spending?
+Which product category generated the most revenue?
+What is the total revenue by region?
+What is the average order value?
+Show total revenue for each month of 2024.

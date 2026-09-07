@@ -1,0 +1,7 @@
+# Harder / ambiguous questions used to expose baseline failure modes.
+# Expect a lower success rate here than on examples/queries.txt.
+Show sales trends over time.
+Which customers signed up early but never became high spenders?
+What is the profit margin per category?
+Compare Q3 and Q4 performance for our best region.
+List the second-most-popular product in each category.

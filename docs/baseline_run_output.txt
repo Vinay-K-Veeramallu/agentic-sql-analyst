@@ -1,0 +1,41 @@
+2026-09-06 17:51:20,664 INFO Provider=asu model=muse-glimmer-30b db=/Users/vveeram6/Movies/CSE-598(Agentic_AI)/capestone-proposal/agentic-sql-analyst/data/analytics.db
+2026-09-06 17:51:20,667 INFO Schema loaded successfully for tables: ['customers', 'orders', 'products']
+2026-09-06 17:51:20,667 INFO Question: Who are the top 3 customers by total spending?
+2026-09-06 17:51:34,077 INFO Generated SQL: SELECT c.customer_name, SUM(o.total_amount) AS total_spending FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id, c.customer_name ORDER BY total_spending DESC LIMIT 3
+2026-09-06 17:51:34,081 INFO Execution succeeded in 13.41s, 3 row(s) returned
+2026-09-06 17:51:43,282 INFO Provider=asu model=muse-glimmer-30b db=/Users/vveeram6/Movies/CSE-598(Agentic_AI)/capestone-proposal/agentic-sql-analyst/data/analytics.db
+2026-09-06 17:51:43,282 INFO Schema loaded successfully for tables: ['customers', 'orders', 'products']
+2026-09-06 17:51:43,282 INFO Question: Who are the top 3 customers by total spending?
+2026-09-06 17:51:44,137 INFO Generated SQL: SELECT c.customer_name, SUM(o.total_amount) AS total_spending FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.customer_id, c.customer_name ORDER BY total_spending DESC LIMIT 3
+2026-09-06 17:51:44,140 INFO Execution succeeded in 0.86s, 3 row(s) returned
+2026-09-06 17:51:44,142 INFO Question: Which product category generated the most revenue?
+2026-09-06 17:51:53,515 INFO Generated SQL: SELECT p.category, SUM(o.total_amount) AS revenue FROM orders o JOIN products p ON o.product_id = p.product_id GROUP BY p.category ORDER BY revenue DESC LIMIT 1
+2026-09-06 17:51:53,516 INFO Execution succeeded in 9.37s, 1 row(s) returned
+2026-09-06 17:51:53,517 INFO Question: What is the total revenue by region?
+2026-09-06 17:52:06,114 INFO Generated SQL: SELECT c.region, SUM(o.total_amount) AS total_revenue FROM customers c JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.region
+2026-09-06 17:52:06,117 INFO Execution succeeded in 12.60s, 4 row(s) returned
+2026-09-06 17:52:06,118 INFO Question: What is the average order value?
+2026-09-06 17:52:24,075 INFO Generated SQL: SELECT AVG(total_amount) AS average_order_value FROM orders
+2026-09-06 17:52:24,076 INFO Execution succeeded in 17.96s, 1 row(s) returned
+2026-09-06 17:52:24,076 INFO Question: Show total revenue for each month of 2024.
+2026-09-06 17:52:38,878 INFO Generated SQL: SELECT strftime('%Y-%m', order_date) AS month, SUM(total_amount) AS total_revenue FROM orders WHERE order_date >= '2024-01-01' AND order_date < '2025-01-01' GROUP BY strftime('%Y-%m', order_date) ORDER BY month
+2026-09-06 17:52:38,880 INFO Execution succeeded in 14.80s, 12 row(s) returned
+2026-09-06 17:52:38,882 INFO Baseline success rate: 5/5 (100.0%)
+2026-09-06 17:52:39,329 INFO Provider=asu model=muse-glimmer-30b db=/Users/vveeram6/Movies/CSE-598(Agentic_AI)/capestone-proposal/agentic-sql-analyst/data/analytics.db
+2026-09-06 17:52:39,329 INFO Schema loaded successfully for tables: ['customers', 'orders', 'products']
+2026-09-06 17:52:39,330 INFO Question: Show sales trends over time.
+2026-09-06 17:53:02,283 INFO Generated SQL: SELECT strftime('%Y-%m', o.order_date) AS month, SUM(o.total_amount) AS total_sales FROM orders o JOIN customers c ON o.customer_id = c.customer_id JOIN products p ON o.product_id = p.product_id GROUP BY strftime('%Y-%m', o.order_date) ORDER BY month
+2026-09-06 17:53:02,287 INFO Execution succeeded in 22.96s, 12 row(s) returned
+2026-09-06 17:53:02,289 INFO Question: Which customers signed up early but never became high spenders?
+2026-09-06 17:55:04,085 INFO Generated SQL: WITH customer_spend AS ( SELECT c.customer_id, c.customer_name, c.signup_date, COALESCE(SUM(o.total_amount),0) AS total_spend FROM customers c LEFT JOIN orders o ON c.customer_id = o.customer_id GROUP BY c.customer_id ), ranked AS ( SELECT cs.*, ROW_NUMBER() OVER (ORDER BY cs.signup_date) AS rn, COUNT(*) OVER () AS cnt FROM customer_spend cs ), avg_spend AS ( SELECT AVG(total_spend) AS avg_spend FROM customer_spend ) SELECT r.customer_name, r.signup_date, r.total_spend FROM ranked r CROSS JOIN avg_spend a WHERE r.rn <= CAST(r.cnt * 0.25 AS INTEGER) AND r.total_spend < a.avg_spend ORDER BY r.signup_date
+2026-09-06 17:55:04,087 INFO Execution succeeded in 121.80s, 2 row(s) returned
+2026-09-06 17:55:04,088 INFO Question: What is the profit margin per category?
+2026-09-06 17:55:20,535 INFO Generated SQL: SELECT p.category, SUM(o.total_amount - o.quantity * p.unit_price) * 1.0 / SUM(o.total_amount) AS profit_margin FROM orders o JOIN products p ON o.product_id = p.product_id GROUP BY p.category
+2026-09-06 17:55:20,536 INFO Execution succeeded in 16.45s, 3 row(s) returned
+2026-09-06 17:55:20,537 INFO Question: Compare Q3 and Q4 performance for our best region.
+2026-09-06 17:56:04,664 INFO Generated SQL: WITH region_sales AS ( SELECT c.region, SUM(o.total_amount) AS total_sales FROM customers c JOIN orders o ON o.customer_id = c.customer_id GROUP BY c.region ), best_region AS ( SELECT region FROM region_sales ORDER BY total_sales DESC LIMIT 1 ) SELECT br.region AS best_region, COALESCE(SUM(CASE WHEN strftime('%m', o.order_date) BETWEEN '07' AND '09' THEN o.total_amount END),0) AS q3_total_sales, COALESCE(SUM(CASE WHEN strftime('%m', o.order_date) BETWEEN '10' AND '12' THEN o.total_amount END),0) AS q4_total_sales, COUNT(CASE WHEN strftime('%m', o.order_date) BETWEEN '07' AND '09' THEN o.order_id END) AS q3_order_count, COUNT(CASE WHEN strftime('%m', o.order_date) BETWEEN '10' AND '12' THEN o.order_id END) AS q4_order_count FROM orders o JOIN customers c ON o.customer_id = c.customer_id CROSS JOIN best_region br WHERE c.region = br.region AND strftime('%m', o.order_date) BETWEEN '07' AND '12' GROUP BY br.region
+2026-09-06 17:56:04,666 INFO Execution succeeded in 44.13s, 1 row(s) returned
+2026-09-06 17:56:04,667 INFO Question: List the second-most-popular product in each category.
+2026-09-06 17:56:27,795 INFO Generated SQL: WITH sales AS ( SELECT p.product_id, p.product_name, p.category, SUM(o.quantity) AS total_quantity FROM products p JOIN orders o ON o.product_id = p.product_id GROUP BY p.product_id, p.product_name, p.category ), ranked AS ( SELECT product_name, category, total_quantity, ROW_NUMBER() OVER (PARTITION BY category ORDER BY total_quantity DESC) AS rn FROM sales ) SELECT product_name, category, total_quantity AS popularity FROM ranked WHERE rn = 2
+2026-09-06 17:56:27,797 INFO Execution succeeded in 23.13s, 3 row(s) returned
+2026-09-06 17:56:27,798 INFO Baseline success rate: 5/5 (100.0%)
