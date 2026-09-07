@@ -1,0 +1,22 @@
+$ python scripts/show_case.py --id H3
+$ # both arms on the same unanswerable question, SQL re-executed offline
+
+Question [H3] (hard/unanswerable): What is the profit margin per category?
+Schema does not contain: product cost  -> the only correct behaviour is to refuse and name it
+
+--- arm b0 (muse-glimmer-30b, prompt b0-v1) [b0_live_20260906.jsonl]
+    SELECT p.category, SUM(o.total_amount - o.quantity * p.unit_price) * 1.0 / SUM(o.total_amount) AS
+    profit_margin FROM orders o JOIN products p ON o.product_id = p.product_id GROUP BY p.category
+
+       category  profit_margin
+    Electronics   1.513844e-18
+      Furniture   0.000000e+00
+     Stationery   0.000000e+00
+
+    verdict: FAIL - FABRICATED: returned a result set for missing data
+
+--- arm b1 (muse-glimmer-30b, prompt b1-v1) [b1_live_20260906.jsonl]
+    REFUSED: NOT_ANSWERABLE: cost
+
+    verdict: PASS - refused, named 'cost'
+

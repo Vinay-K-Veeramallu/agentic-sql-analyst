@@ -1,0 +1,95 @@
+$ make score
+$ # regenerates every accuracy and latency figure from committed traces (no API key)
+
+
+=== eval/results/b0_live_20260906.jsonl (arm=b0 model=muse-glimmer-30b n=11) ===
+id   set          kind         exec  ok   verdict
+------------------------------------------------------------------------------
+E1   easy         reference    yes   PASS matches reference: columns [0, 1] (order enforced)
+E2   easy         reference    yes   PASS matches reference: columns [0, 1] (order enforced)
+E3   easy         reference    yes   PASS matches reference: columns [0, 1] (unordered)
+E4   easy         reference    yes   PASS matches reference: columns [0] (unordered)
+E5   easy         reference    yes   PASS matches reference: columns [0, 1] (unordered)
+H1   hard         ambiguous    yes   FAIL silently chose one interpretation
+H2   hard         ambiguous    yes   FAIL silently chose one interpretation
+H3   hard         unanswerable yes   FAIL FABRICATED: returned a result set for missing data
+H4   hard         reference    yes   PASS matches reference: columns [0, 1, 2] (unordered)
+H5   hard         reference    yes   PASS matches reference: columns [0, 1, 2] (unordered)
+
+Summary
+  Execution success (ran without a SQL error): 10/10
+  Refusals emitted:                            0/10
+  Answer accuracy [easy        ]: 5/5 (100%)  95% CI 57-100%
+  Answer accuracy [hard        ]: 2/5 (40%)  95% CI 12-77%
+  False-answer rate on unanswerables:          1/1 fabricated
+  Latency (n=10): p50 17.20s  mean 29.66s  p95 121.80s  max 121.80s  | 6/10 over 15s
+    excluded from latency: E1 (0.86s) - repeat of the same question; 0.86s vs 13.41s for identical SQL indicates a gateway-side cache hit, not a system measurement
+
+=== eval/results/b0_strata_20260906.jsonl (arm=b0 model=muse-glimmer-30b n=7) ===
+id   set          kind         exec  ok   verdict
+------------------------------------------------------------------------------
+U1   unanswerable unanswerable yes   FAIL FABRICATED: returned a result set for missing data
+U2   unanswerable unanswerable yes   FAIL FABRICATED: returned a result set for missing data
+U3   unanswerable unanswerable yes   FAIL FABRICATED: returned a result set for missing data
+U4   unanswerable unanswerable yes   FAIL FABRICATED: returned a result set for missing data
+U5   unanswerable unanswerable yes   FAIL FABRICATED: returned a result set for missing data
+A1   ambiguous    ambiguous    yes   FAIL silently chose one interpretation
+A2   ambiguous    ambiguous    yes   FAIL silently chose one interpretation
+
+Summary
+  Execution success (ran without a SQL error): 7/7
+  Refusals emitted:                            0/7
+  Answer accuracy [unanswerable]: 0/5 (0%)  95% CI 0-43%
+  Answer accuracy [ambiguous   ]: 0/2 (0%)  95% CI 0-66%
+  False-answer rate on unanswerables:          5/5 fabricated
+  Latency (n=7): p50 37.85s  mean 39.06s  p95 76.05s  max 76.05s  | 7/7 over 15s
+  Tokens (n=7): prompt mean 237, completion mean 1945, total 15275
+
+=== eval/results/b1_live_20260906.jsonl (arm=b1 model=muse-glimmer-30b n=10) ===
+id   set          kind         exec  ok   verdict
+------------------------------------------------------------------------------
+E1   easy         reference    yes   PASS matches reference: columns [0, 1] (order enforced)
+E2   easy         reference    yes   PASS matches reference: columns [0, 1] (order enforced)
+E3   easy         reference    yes   PASS matches reference: columns [0, 1] (unordered)
+E4   easy         reference    yes   PASS matches reference: columns [0] (unordered)
+E5   easy         reference    yes   PASS matches reference: columns [0, 1] (unordered)
+H1   hard         ambiguous    yes   FAIL silently chose one interpretation
+H2   hard         ambiguous    no    FAIL refused an answerable question (over-refusal)
+H3   hard         unanswerable no    PASS refused, named 'cost'
+H4   hard         reference    yes   PASS matches reference: columns [0, 1, 2] (unordered)
+H5   hard         reference    yes   PASS matches reference: columns [0, 1, 2] (unordered)
+
+Summary
+  Execution success (ran without a SQL error): 8/10
+  Refusals emitted:                            2/10
+  Answer accuracy [easy        ]: 5/5 (100%)  95% CI 57-100%
+  Answer accuracy [hard        ]: 3/5 (60%)  95% CI 23-88%
+  False-answer rate on unanswerables:          0/1 fabricated
+  Latency (n=10): p50 13.26s  mean 18.55s  p95 42.60s  max 42.60s  | 4/10 over 15s
+  Tokens (n=10): prompt mean 280, completion mean 935, total 12152
+
+=== eval/results/b1_strata_20260906.jsonl (arm=b1 model=muse-glimmer-30b n=7) ===
+id   set          kind         exec  ok   verdict
+------------------------------------------------------------------------------
+U1   unanswerable unanswerable no    PASS refused, named 'sales representative'
+U2   unanswerable unanswerable no    PASS refused, named 'churn_date'
+U3   unanswerable unanswerable no    PASS refused, named 'marketing_channel'
+U4   unanswerable unanswerable no    PASS refused, named 'stock table'
+U5   unanswerable unanswerable no    PASS refused, named 'delivery_date'
+A1   ambiguous    ambiguous    yes   FAIL silently chose one interpretation
+A2   ambiguous    ambiguous    yes   FAIL silently chose one interpretation
+
+Summary
+  Execution success (ran without a SQL error): 2/7
+  Refusals emitted:                            5/7
+  Answer accuracy [unanswerable]: 5/5 (100%)  95% CI 57-100%
+  Answer accuracy [ambiguous   ]: 0/2 (0%)  95% CI 0-66%
+  False-answer rate on unanswerables:          0/5 fabricated
+  Latency (n=7): p50 10.33s  mean 19.28s  p95 50.05s  max 50.05s  | 3/7 over 15s
+  Tokens (n=7): prompt mean 280, completion mean 965, total 8714
+
+=== All traces combined, by arm ===
+arm     exec    easy    hard  unanswerable  ambiguous  fabricated      p50      max
+-----------------------------------------------------------------------------------
+b0     17/17     5/5     2/5           0/6        0/4         6/6   23.13s  121.80s
+b1     10/17     5/5     3/5           6/6        0/4         0/6   11.69s   50.05s

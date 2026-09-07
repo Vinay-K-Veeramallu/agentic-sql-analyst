@@ -1,0 +1,32 @@
+$ make score
+$ # every figure below is regenerated from committed traces; no API key used
+
+=== eval/results/b0_live_20260906.jsonl (arm=b0 model=muse-glimmer-30b n=11) ===
+id   set          kind         exec  ok   verdict
+------------------------------------------------------------------------------
+E1   easy         reference    yes   PASS matches reference: columns [0, 1] (order enforced)
+E2   easy         reference    yes   PASS matches reference: columns [0, 1] (order enforced)
+E3   easy         reference    yes   PASS matches reference: columns [0, 1] (unordered)
+E4   easy         reference    yes   PASS matches reference: columns [0] (unordered)
+E5   easy         reference    yes   PASS matches reference: columns [0, 1] (unordered)
+H1   hard         ambiguous    yes   FAIL silently chose one interpretation
+H2   hard         ambiguous    yes   FAIL silently chose one interpretation
+H3   hard         unanswerable yes   FAIL FABRICATED: returned a result set for missing data
+H4   hard         reference    yes   PASS matches reference: columns [0, 1, 2] (unordered)
+H5   hard         reference    yes   PASS matches reference: columns [0, 1, 2] (unordered)
+
+Summary
+  Execution success (ran without a SQL error): 10/10
+  Refusals emitted:                            0/10
+  Answer accuracy [easy        ]: 5/5 (100%)  95% CI 57-100%
+  Answer accuracy [hard        ]: 2/5 (40%)  95% CI 12-77%
+  False-answer rate on unanswerables:          1/1 fabricated
+  Latency (n=10): p50 17.20s  mean 29.66s  p95 121.80s  max 121.80s  | 6/10 over 15s
+    excluded from latency: E1 (0.86s) - repeat of the same question; 0.86s vs 13.41s for identical SQL indicates a gateway-side cache hit, not a system measurement
+
+
+=== All traces combined, by arm ===
+arm     exec    easy    hard  unanswerable  ambiguous  fabricated      p50      max
+-----------------------------------------------------------------------------------
+b0     17/17     5/5     2/5           0/6        0/4         6/6   23.13s  121.80s
+b1     10/17     5/5     3/5           6/6        0/4         0/6   11.69s   50.05s

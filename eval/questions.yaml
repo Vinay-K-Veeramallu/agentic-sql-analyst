@@ -1,0 +1,226 @@
+# QueryMind evaluation set.
+#
+# Every question carries the machine-checkable criterion that decides it, so
+# `make score` reproduces every accuracy figure in the proposal with no API key.
+#
+# Fields
+#   id            stable identifier used in traces and reports
+#   set           easy | hard        - which stratum the question is reported in
+#   kind          reference          - correct iff the result set matches reference_sql
+#                 ambiguous          - correct iff the answer states its assumptions
+#                 unanswerable       - correct iff the system refuses and names a missing field
+#   ordered       true  -> row order is part of correctness (e.g. "top 3")
+#                 false -> compared as an unordered multiset
+#   reference_sql hand-written ground truth (kind: reference only)
+#   accept_missing accepted substrings for the named missing field (kind: unanswerable)
+#   undefined_terms what a correct answer must disambiguate (kind: ambiguous)
+#
+# Matching rule for kind: reference
+#   A candidate is correct when some injective mapping of the reference columns
+#   onto candidate columns reproduces the reference rows as a multiset, with
+#   1e-6 float tolerance. Column NAMES are ignored (total_spent vs total_spending
+#   is not an error) and EXTRA candidate columns are tolerated (a broader answer
+#   that contains the answer still answers the question). Row count must match.
+#   Rationale and worked examples: eval/README.md
+
+# --------------------------------------------------------------------------- #
+# Easy stratum - single-table aggregates and two-table JOINs
+# (examples/queries.txt, run live 2026-09-06)
+# --------------------------------------------------------------------------- #
+
+- id: E1
+  set: easy
+  kind: reference
+  ordered: true
+  question: Who are the top 3 customers by total spending?
+  reference_sql: |
+    SELECT c.customer_name, SUM(o.total_amount) AS total_spent
+    FROM orders o
+    JOIN customers c ON c.customer_id = o.customer_id
+    GROUP BY c.customer_name
+    ORDER BY total_spent DESC
+    LIMIT 3
+
+- id: E2
+  set: easy
+  kind: reference
+  ordered: true
+  question: Which product category generated the most revenue?
+  reference_sql: |
+    SELECT p.category, SUM(o.total_amount) AS revenue
+    FROM orders o
+    JOIN products p ON p.product_id = o.product_id
+    GROUP BY p.category
+    ORDER BY revenue DESC
+    LIMIT 1
+
+- id: E3
+  set: easy
+  kind: reference
+  ordered: false
+  question: What is the total revenue by region?
+  reference_sql: |
+    SELECT c.region, SUM(o.total_amount) AS total_revenue
+    FROM customers c
+    JOIN orders o ON o.customer_id = c.customer_id
+    GROUP BY c.region
+
+- id: E4
+  set: easy
+  kind: reference
+  ordered: false
+  question: What is the average order value?
+  reference_sql: |
+    SELECT AVG(total_amount) AS average_order_value FROM orders
+
+- id: E5
+  set: easy
+  kind: reference
+  ordered: false
+  question: Show total revenue for each month of 2024.
+  reference_sql: |
+    SELECT strftime('%Y-%m', order_date) AS month,
+           SUM(total_amount) AS total_revenue
+    FROM orders
+    WHERE order_date >= '2024-01-01' AND order_date < '2025-01-01'
+    GROUP BY strftime('%Y-%m', order_date)
+    ORDER BY month
+
+# --------------------------------------------------------------------------- #
+# Hard stratum - multi-hop, window functions, and deliberately underspecified
+# or unanswerable questions (examples/hard_queries.txt, run live 2026-09-06)
+# --------------------------------------------------------------------------- #
+
+- id: H1
+  set: hard
+  kind: ambiguous
+  question: Show sales trends over time.
+  undefined_terms: [time granularity, measure, date range]
+  note: >
+    Answerable at many granularities. Correct behaviour is to answer AND state
+    the granularity chosen, not to pick one silently.
+
+- id: H2
+  set: hard
+  kind: ambiguous
+  question: Which customers signed up early but never became high spenders?
+  undefined_terms: ["early cutoff", "high spender threshold"]
+  note: >
+    Both thresholds are undefined. Correct behaviour is to state the cutoffs
+    used or to ask; the baseline invented earliest-25% and below-average spend
+    without flagging either.
+
+- id: H3
+  set: hard
+  kind: unanswerable
+  question: What is the profit margin per category?
+  missing_field: product cost
+  accept_missing: [cost, cogs, margin, unit_cost, purchase price, expense]
+  note: >
+    total_amount is stored as quantity * unit_price and the schema holds no cost
+    column, so margin is identically zero by construction. See the construction
+    disclosure in PROPOSAL.md section 4.
+
+- id: H4
+  set: hard
+  kind: reference
+  ordered: false
+  question: Compare Q3 and Q4 performance for our best region.
+  reference_sql: |
+    WITH region_sales AS (
+      SELECT c.region, SUM(o.total_amount) AS total_sales
+      FROM customers c
+      JOIN orders o ON o.customer_id = c.customer_id
+      GROUP BY c.region
+    ), best AS (
+      SELECT region FROM region_sales ORDER BY total_sales DESC LIMIT 1
+    )
+    SELECT b.region,
+           COALESCE(SUM(CASE WHEN strftime('%m', o.order_date)
+                             BETWEEN '07' AND '09' THEN o.total_amount END), 0) AS q3_sales,
+           COALESCE(SUM(CASE WHEN strftime('%m', o.order_date)
+                             BETWEEN '10' AND '12' THEN o.total_amount END), 0) AS q4_sales
+    FROM orders o
+    JOIN customers c ON c.customer_id = o.customer_id
+    CROSS JOIN best b
+    WHERE c.region = b.region
+    GROUP BY b.region
+
+- id: H5
+  set: hard
+  kind: reference
+  ordered: false
+  question: List the second-most-popular product in each category.
+  reference_sql: |
+    WITH sales AS (
+      SELECT p.product_id, p.product_name, p.category,
+             SUM(o.quantity) AS total_quantity
+      FROM products p
+      JOIN orders o ON o.product_id = p.product_id
+      GROUP BY p.product_id, p.product_name, p.category
+    ), ranked AS (
+      SELECT product_name, category, total_quantity,
+             ROW_NUMBER() OVER (PARTITION BY category
+                                ORDER BY total_quantity DESC) AS rn
+      FROM sales
+    )
+    SELECT product_name, category, total_quantity
+    FROM ranked
+    WHERE rn = 2
+
+# --------------------------------------------------------------------------- #
+# Unanswerable stratum - added 2026-09-06 to give the project's primary metric
+# a denominator larger than one. Each names a field this schema does not hold.
+# --------------------------------------------------------------------------- #
+
+- id: U1
+  set: unanswerable
+  kind: unanswerable
+  question: Which sales representative closed the most revenue?
+  missing_field: sales representative
+  accept_missing: [sales rep, representative, employee, seller, owner, staff, agent]
+
+- id: U2
+  set: unanswerable
+  kind: unanswerable
+  question: What is our customer churn rate this year?
+  missing_field: subscription or cancellation status
+  accept_missing: [churn, cancel, subscription, status, active, retention, end date]
+
+- id: U3
+  set: unanswerable
+  kind: unanswerable
+  question: Which marketing channel brought in the most customers?
+  missing_field: acquisition channel
+  accept_missing: [channel, marketing, campaign, source, referral, acquisition]
+
+- id: U4
+  set: unanswerable
+  kind: unanswerable
+  question: How many units of each product do we currently have in stock?
+  missing_field: inventory level
+  accept_missing: [stock, inventory, quantity on hand, warehouse, supply]
+
+- id: U5
+  set: unanswerable
+  kind: unanswerable
+  question: What is the average delivery time for orders?
+  missing_field: shipment or delivery date
+  accept_missing: [deliver, ship, dispatch, arrival, fulfil, fulfill, transit]
+
+# --------------------------------------------------------------------------- #
+# Ambiguous stratum - added 2026-09-06 to give silent-disambiguation a
+# denominator. Answerable, but only after a definition is chosen and stated.
+# --------------------------------------------------------------------------- #
+
+- id: A1
+  set: ambiguous
+  kind: ambiguous
+  question: Who are our most active customers?
+  undefined_terms: ["active (order count vs spend vs recency)", "how many to return"]
+
+- id: A2
+  set: ambiguous
+  kind: ambiguous
+  question: How did we perform last quarter?
+  undefined_terms: ["anchor date for 'last quarter'", "performance measure"]

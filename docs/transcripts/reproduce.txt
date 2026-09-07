@@ -1,0 +1,17 @@
+$ make verify-data
+[OK] data/analytics.db matches the committed md5 (d612d894b6250755906a962edf27e7ab)
+
+$ make test
+........................................................................ [ 94%]
+....                                                                     [100%]
+76 passed in 0.15s
+
+$ make demo   # offline, no API key
+[INFO] Generated SQL: SELECT c.customer_name, SUM(o.total_amount) AS total_spent FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.customer_name ORDER BY total_spent DESC LIMIT 3
+[INFO] Execution succeeded in 0.00s, 3 row(s) returned
+
+customer_name  total_spent
+Alice Johnson     10643.33
+    Bob Smith     10539.88
+ Laura Wilson      9250.98
+

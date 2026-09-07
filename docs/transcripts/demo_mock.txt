@@ -1,0 +1,14 @@
+$ make demo
+$ # offline path: no API key required
+
+[INFO] run_id=dea40b276c43 provider=mock model=muse-glimmer-30b arm=b0 (single call, no permission to refuse (frozen baseline)) db=/Users/vveeram6/Movies/CSE-598(Agentic_AI)/capestone-proposal/agentic-sql-analyst/data/analytics.db
+[INFO] Schema loaded successfully for tables: ['customers', 'orders', 'products']
+[INFO] [test1:1] Question: Who are the top 3 customers by total spending?
+[INFO] Generated SQL: SELECT c.customer_name, SUM(o.total_amount) AS total_spent FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.customer_name ORDER BY total_spent DESC LIMIT 3
+[INFO] Execution succeeded in 0.00s, 3 row(s) returned
+
+customer_name  total_spent
+Alice Johnson     10643.33
+    Bob Smith     10539.88
+ Laura Wilson      9250.98
+
