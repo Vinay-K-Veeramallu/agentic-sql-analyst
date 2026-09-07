@@ -2,9 +2,9 @@ $ make verify-data
 [OK] data/analytics.db matches the committed md5 (d612d894b6250755906a962edf27e7ab)
 
 $ make test
-........................................................................ [ 94%]
-....                                                                     [100%]
-76 passed in 0.15s
+........................................................................ [ 91%]
+.......                                                                  [100%]
+79 passed in 0.20s
 
 $ make demo   # offline, no API key
 [INFO] Generated SQL: SELECT c.customer_name, SUM(o.total_amount) AS total_spent FROM orders o JOIN customers c ON c.customer_id = o.customer_id GROUP BY c.customer_name ORDER BY total_spent DESC LIMIT 3

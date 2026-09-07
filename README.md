@@ -27,7 +27,7 @@ make setup          # venv + pinned dependencies (Python 3.11)
 make seed           # build data/analytics.db (deterministic, seed 598)
 make verify-data    # confirm md5 d612d894b6250755906a962edf27e7ab
 make demo           # run the headline test case offline, no API key
-make test           # 76 tests
+make test           # 79 tests
 make score          # regenerate every accuracy and latency figure
 ```
 
@@ -167,7 +167,7 @@ that is *flagged* when hit. The keyword check is only for error messages — see
 
 | Arm | Prompt | Role |
 | --- | --- | --- |
-| `b0` | 6 rules, no permission to refuse | The floor. **Frozen** — a test fails if it changes, because the committed traces were produced with it. |
+| `b0` | 6 rules, no permission to refuse | The floor. **Frozen by a byte-level SHA-256 test** (`tests/test_llm.py`) — any edit fails the suite and forces a version bump plus re-measurement, because the committed traces were produced with this exact text. |
 | `b1` | `b0` + one sentence permitting `NOT_ANSWERABLE: <field>` | The control arm: how much does one sentence buy, before any architecture is credited? |
 
 ## 9. About `--provider mock`
@@ -216,7 +216,8 @@ to 6/6 with no easy-set regression, at the cost of one over-refusal. See
 
 ## 12. Next steps
 
-Widen the evaluation set to 15 per stratum with k=3 repeats, add the
-self-consistency arm, then build the LangGraph state machine (gate → generate →
+Widen the evaluation set to 60 questions (15 easy, 20 hard, 15 unanswerable, 10
+ambiguous) with k=3 repeats, add the self-consistency arm, then build the
+LangGraph state machine (gate → generate →
 validate → execute → verify) with per-node ablation, and finally a thin Streamlit
 UI. See `PROPOSAL.md` §7 and `docs/adr/`.

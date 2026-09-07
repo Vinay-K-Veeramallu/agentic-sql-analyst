@@ -28,7 +28,7 @@ sentence in the system prompt, so any measured difference is attributable to it.
 
 | Arm | System prompt | Purpose |
 | --- | --- | --- |
-| `b0` | 6 rules, no permission to refuse | The measurement floor. **Frozen** — a test asserts it contains no refusal clause, because the committed `b0` results were produced with it. |
+| `b0` | 6 rules, no permission to refuse | The measurement floor. **Frozen by a byte-level SHA-256 test** — `tests/test_llm.py::test_prompt_arms_are_byte_frozen` fails on any edit, not just on adding a refusal clause, because the committed `b0` results were produced with this exact text. |
 | `b1` | `b0` + "if the schema cannot answer, reply `NOT_ANSWERABLE: <missing field>`" | The prompt-only control. Establishes how much of any refusal gain a one-sentence change already buys, before any agentic machinery is credited with it. |
 
 ## Decision rules
@@ -82,8 +82,9 @@ combined table printed by `make score` uses those totals; the per-file tables us
 
 * **n is small.** 5 items per stratum gives a 95% Wilson interval of 12–77% on a
   2/5 result, which cannot separate 40% from 80%. The scorer prints the interval
-  with every rate so this is visible rather than hidden. Widening to 15 per
-  stratum with k=3 repeats is week 3–4 work.
+  with every rate so this is visible rather than hidden. Widening to 60 questions
+  (15 easy, 20 hard, 15 unanswerable, 10 ambiguous) with k=3 repeats is week 3–4
+  work.
 * **Single run per question.** No variance estimate. The gateway is not
   bit-deterministic even at temperature 0.
 * **One schema, one dialect, one model.** Nothing here shows the findings

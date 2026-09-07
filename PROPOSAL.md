@@ -49,7 +49,7 @@ question. The project measures how much agency those two jobs justify — a stro
 agent".
 
 **Feasibility.** One local 3-table SQLite database: no infrastructure, credentials, or data collection. The
-harness, scorer and 76 tests already exist, so what remains is a bounded state machine over a fixed
+harness, scorer and 79 tests already exist, so what remains is a bounded state machine over a fixed
 benchmark.
 
 | In scope this semester | Deliberately out of scope |
@@ -75,13 +75,15 @@ handler bounds query cost while rows stream under a cap that is flagged when hit
 `tests/test_guard.py`).
 
 **Why this baseline is reasonable.** It is the weakest system that answers the question end to end. The `b0`
-prompt is **frozen** — a test fails if it changes — and every later arm shares the same database, schema
-block, model, temperature, execution path and scorer, so any measured difference is attributable to the one
-thing that changed, not to a better prompt or a bigger model. It is an instrument, not a candidate system.
+prompt is **frozen by a byte-level SHA-256 test**, so it cannot be edited without failing the suite and
+forcing a version bump plus re-measurement (`tests/test_llm.py`); every later arm shares the same database,
+schema block, model, temperature, execution path and scorer, so any measured difference is attributable to
+the one thing that changed, not to a better prompt or a bigger model. It is an instrument, not a candidate
+system.
 
 **Implementation.** `src/baseline.py` (entry), `src/db.py` (execution, introspection), `src/llm.py` (prompt
 arms, providers), `src/score.py` (scorer), `eval/questions.yaml` (reference SQL), `eval/results/*.jsonl`
-(traces), `tests/` (76 tests), `config/settings.yaml`.
+(traces), `tests/` (79 tests), `config/settings.yaml`.
 
 ## 4. Test Case and Baseline Output
 
@@ -97,10 +99,13 @@ customer, ordered descending, limit 3 — yielding Alice Johnson 10643.33, Bob S
 4**. The baseline grouped by `customer_id, customer_name` and aliased the sum `total_spending`; it returns
 identical rows and passes, because the matching rule ignores column names.
 
-| Arm | Execution success | Easy (ref.) | Hard (ref.) | Unanswerable refused | Ambiguity flagged | Fabrications | p50 |
+| Arm | Execution success | Easy (ref.) | Hard (ref.) | Unanswerable refused | Ambiguity flagged | Fabrications | p50 (all 17) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `b0` frozen baseline | 17/17 | 5/5 | 2/5 | 0/6 | 0/4 | **6/6** | 23.13s |
 | `b1` = `b0` + one sentence | 10/17 (7 refusals) | 5/5 | 3/5 | **6/6** | 0/4 | 0/6 | 11.69s |
+
+The strata overlap deliberately, so the labels sum to 20 across 17 questions: H1–H2 are counted as both hard
+and ambiguous, and H3 as both hard and unanswerable (`eval/README.md`).
 
 **What worked — more than expected.** Zero syntax errors and zero hallucinated identifiers in 17 runs,
 correct foreign-key joins unprompted, and correct `ROW_NUMBER() OVER (PARTITION BY …)` on the
@@ -120,10 +125,12 @@ the right field each time, with no easy-set regression and hard-set accuracy up 
 lower panel). **The refusal gain requires no agent.** It also cost one over-refusal, now a tracked metric.
 This partly falsifies my original thesis, which is why §2 and §6 are written against it (ADR 0002).
 
-**Latency.** `b0` on the original 10 questions: p50 **17.20s**, mean 29.66s, max 121.80s, 6/10 over the 15s
-target. An 11th run repeated a question and returned in 0.86s against 13.41s for identical SQL — a gateway
-cache hit, excluded and flagged in the trace rather than quietly averaged in. Latency tracks generated
-tokens, not database work: SQLite returned every result in under 1ms.
+**Latency.** Two scopes, reported separately because they are not interchangeable. On the original 10 live
+questions `b0` gives p50 **17.20s** (mean 29.66s, max 121.80s, 6/10 over the 15s target) against `b1`'s
+13.26s; across all 17 runs per arm it is **23.13s** against `b1`'s 11.69s — refusals are cheap, so permitting
+them lowers latency. An 11th `b0` run repeated a question and returned in 0.86s against 13.41s for identical
+SQL — a gateway cache hit, excluded and flagged in the trace rather than quietly averaged in. Latency tracks
+generated tokens, not database work: SQLite returned every result in under 1ms.
 
 **Construction disclosure.** The schema is self-authored and its unanswerable region was known before the
 question was asked — I designed `total_amount` as `quantity × unit_price` with no cost column, and wrote the
@@ -136,7 +143,7 @@ about the model, and §6 does not treat them as external validation.
 git clone https://github.com/Vinay-K-Veeramallu/agentic-sql-analyst.git
 cd agentic-sql-analyst && git checkout baseline
 make setup && make seed        # venv + pinned deps; build data/analytics.db
-make verify-data && make test  # md5 d612d894b6250755906a962edf27e7ab; 76 tests
+make verify-data && make test  # md5 d612d894b6250755906a962edf27e7ab; 79 tests
 make demo                      # python src/baseline.py --input examples/test1.txt --provider mock
 make score                     # regenerates every number in this document
 ```
@@ -169,12 +176,16 @@ the latency it costs, as a config flag rather than a code branch (ADR 0004).
 | Easy-set accuracy (regression guard) | result matches reference | 5/5 | 5/5 | 5/5 |
 | Hard-set accuracy | result matches reference | 2/5 | 3/5 | ≥70% |
 | Over-refusal; execution success | answerable refused; ran without error | 0; 17/17 | 1; 10/17 | ≤1; ≥98% |
-| Latency p50; tokens per question | wall clock, cache hits excluded | 17.20s; 2182 | 11.69s; 1245 | <15s; reported |
+| Latency p50, all 17 runs per arm | wall clock, cache hits excluded | 23.13s | 11.69s | <15s |
+| Tokens per question (strata subset, n=7 each) | gateway usage | 2182 | 1245 | reported |
 
 **Statistical footing, stated because it is currently weak.** At n=5 a 2/5 result has a 95% Wilson interval
 of **12–77%** and cannot separate 40% from 80%; the scorer prints the interval beside every rate so this is
-visible rather than hidden. Week 3 widens to 60 questions (15 easy, 30 hard, 15 unanswerable) with k=3
-repeats reported as mean ± interval, at which point a 40%→80% shift is separable.
+visible rather than hidden. Week 3 widens to 60 questions — 15 easy, 20 hard, 15 unanswerable and 10
+ambiguous, so the stratum the thesis now rests on gets a real denominator — with k=3 repeats reported as
+mean ± interval, at which point a 40%→80% shift is separable. Token counts above cover the strata subset
+because `b0`'s live trace was reconstructed from the pre-instrumentation log and carries no usage data;
+every run from week 3 onward records tokens.
 
 **What counts as evidence.** `a1` beating `b1` — not `b0` — on the primary metric and on ambiguity flagging,
 with no easy-set regression and the added latency reported. If `b1` or `b2` matches `a1`, the honest
@@ -184,10 +195,10 @@ this once, at a cost to my own thesis.
 ## 7. Limitations and Next Steps
 
 **Measured weaknesses.** Fabricates on unanswerable questions (6/6); never flags ambiguity (0/4); p50 17.20s
-against a 15s target; no verification that a result answers the question; 5–6 items per stratum, single run,
-so intervals are wide; one schema, one dialect, one model; results print to `max_rows=50` (truncation
-flagged, not silent); `b1` over-refuses; no CI yet. Not a weakness, contrary to expectation: SQL syntax and
-schema grounding — zero errors in 17 runs.
+on the original 10 questions and 23.13s across all 17, against a 15s target; no verification that a result
+answers the question; 5–6 items per stratum, single run, so intervals are wide; one schema, one dialect, one
+model; results print to `max_rows=50` (truncation flagged, not silent); `b1` over-refuses; no CI yet. Not a
+weakness, contrary to expectation: SQL syntax and schema grounding — zero errors in 17 runs.
 
 **Expected failure cases.** Relative time with no anchor ("last quarter"); contested definitions ("active
 customer"); `INNER` vs `LEFT` silently dropping customers with no orders; empty results reported without
@@ -206,8 +217,9 @@ questions with intervals. *Latency compounding* — the validator is determinist
 gate runs before generation so refusals get cheaper (`b1` p50 is already below `b0`), and responses are
 cached. *Over-refusal* — a first-class metric with the easy set as a regression gate. *Findings dismissed as
 toy-schema artefacts* — schema-scale sweep, second model, and the disclosure in §4. **What I may need:**
-sustained ASU gateway quota for the sweeps (≈2,000 calls for 60 questions × 4 arms × 3 repeats) and about a
-day to write and verify the remaining reference queries.
+sustained ASU gateway quota for the sweeps — ≈1,800 calls (`b0` and `b1` at 180 each, `b2` at k=5 giving 900,
+`a1` at roughly 3 calls per question giving 540) — and about a day to write and verify the remaining
+reference queries.
 
 ### Figures
 
@@ -222,5 +234,5 @@ Renderings of captured output; raw transcripts are committed under `docs/transcr
 **Figure 3** — `docs/figures/fig3_score.png`. `make score`: per-question verdicts and the cross-arm
 comparison, regenerated from committed traces with no API key.
 
-**Figure 4** — `docs/figures/fig4_reproduce.png`. `make verify-data`, `make test` (76 passing), and `make
+**Figure 4** — `docs/figures/fig4_reproduce.png`. `make verify-data`, `make test` (79 passing), and `make
 demo` reproducing the headline rows offline.

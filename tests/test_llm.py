@@ -1,13 +1,48 @@
 """Prompt arms, reply parsing, and the frozen-baseline guarantee."""
 
+import hashlib
+
 import pytest
 
 import llm
 
+# SHA-256 of each measured arm's system prompt. These are the exact texts that
+# produced the traces committed under eval/results/, so any edit must be a
+# deliberate, versioned change rather than a silent one.
+FROZEN_PROMPT_HASHES = {
+    "b0": "077e7222b5962596c1d3148e82030ce079d1e1e99bcebfe74039ebd3e5133c1d",
+    "b1": "30479e8f6609d1dbe8a265552e6a165641e7bce9baae0e434eb35dfb45649010",
+}
+
 
 # --------------------------------------------------------------------------- #
-# The b0 prompt is the measurement floor and must stay frozen
+# Measured prompts are frozen byte for byte
 # --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize("arm,expected", sorted(FROZEN_PROMPT_HASHES.items()))
+def test_prompt_arms_are_byte_frozen(arm, expected):
+    """Any change to a measured prompt - not just a refusal clause - fails here."""
+    actual = hashlib.sha256(llm.system_prompt(arm).encode("utf-8")).hexdigest()
+    assert actual == expected, (
+        f"\nThe '{arm}' system prompt changed.\n"
+        f"  expected sha256: {expected}\n"
+        f"  actual   sha256: {actual}\n\n"
+        f"The traces in eval/results/{arm}_*.jsonl were produced with the previous\n"
+        f"text, so editing this arm in place silently invalidates every number the\n"
+        f"proposal reports for it. To change it deliberately, either:\n"
+        f"  (a) add a NEW arm (e.g. '{arm}v2') in src/llm.py and leave '{arm}' alone, or\n"
+        f"  (b) bump ARMS['{arm}']['version'], update the hash in this test, and re-run\n"
+        f"      that arm's measurements, replacing eval/results/{arm}_*.jsonl.\n"
+    )
+
+
+def test_every_measured_arm_is_covered_by_a_frozen_hash():
+    """A new arm cannot be added to ARMS without also being pinned."""
+    assert set(llm.ARMS) == set(FROZEN_PROMPT_HASHES), (
+        "Arms in src/llm.py and pinned hashes have diverged: "
+        f"{sorted(set(llm.ARMS) ^ set(FROZEN_PROMPT_HASHES))}"
+    )
+
 
 def test_b0_never_grants_permission_to_refuse():
     """If this fails, the committed b0 results no longer describe the code."""
